@@ -1278,8 +1278,8 @@ sub reindex_table {
   return $is_reindexed;
 }
 
-sub ccnews_drop {
-    logger(LOG_NOTICE, "Drop CCNews Indexes");
+sub ccnew_indexes_drop {
+  logger(LOG_NOTICE, "Drop CCNews Indexes");
 
   my $sth = _dbh->prepare("
 SELECT pg_indexes.indexname::text
@@ -1338,7 +1338,7 @@ sub process {
 
   $table_info->{base_stats} = {%{$table_info->{stats}}} unless ($table_info->{base_stats});
 
-  ccnews_drop();
+   ccnew_indexes_drop();
 
   if (!$is_locked && !$no_initial_vacuum) {
     my $vacuum_time = time;
