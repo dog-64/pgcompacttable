@@ -83,7 +83,7 @@ my %excluded_tables;
 
 my $initial_reindex;
 my $no_initial_vacuum;
-§my $ccnew_indexes_drop;
+my $ccnew_indexes_drop;
 
 my %table_info;
 
