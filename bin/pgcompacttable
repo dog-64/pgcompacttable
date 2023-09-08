@@ -1342,9 +1342,9 @@ sub process {
 
   $table_info->{base_stats} = {%{$table_info->{stats}}} unless ($table_info->{base_stats});
 
-#   if ($ccnew_indexes_drop) {
-#     ccnew_indexes_drop();
-#   }  
+   if ($ccnew_indexes_drop) {
+     ccnew_indexes_drop();
+   }  
 
   if (!$is_locked && !$no_initial_vacuum) {
     my $vacuum_time = time;
