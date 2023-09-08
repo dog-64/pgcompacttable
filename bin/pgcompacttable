@@ -1284,6 +1284,7 @@ sub reindex_table {
 }
 
 sub ccnew_indexes_drop {
+  logger(LOG_ERROR, "ccnew_indexes_drop");
   my $sth = _dbh->prepare("
 SELECT pg_indexes.indexname::text
     FROM pg_indexes
