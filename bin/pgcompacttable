@@ -121,7 +121,7 @@ unless (GetOptions(
             'N|exclude-schema=s' => \$exclude_schema,
             'T|exclude-table=s' => \$exclude_table,
             'i|initial-reindex' => \$initial_reindex,
-            'ccnew-indexes-drop' => \$ccnew_indexes_drop
+            'ccnew_indexes_drop' => \$ccnew_indexes_drop
           )) {
  show_usage();
  exit(0);
@@ -1284,7 +1284,6 @@ sub reindex_table {
 }
 
 sub ccnew_indexes_drop {
-  logger(LOG_ERROR, "ccnew_indexes_drop");
   my $sth = _dbh->prepare("
 SELECT pg_indexes.indexname::text
     FROM pg_indexes
@@ -1307,7 +1306,7 @@ SELECT pg_indexes.indexname::text
 
   my @result;
   while(my ($idx_name) = $sth->fetchrow_array) {
-    logger(LOG_ERROR, "DROP INDEX CONCURRENTLY IF EXISTS  %s", $idx_name);
+    logger(LO_NOTICE, "Removing unnecessary ccnew index: %s", $idx_name);
     my $sdrop = _dbh->do("DROP INDEX CONCURRENTLY IF EXISTS $idx_name");
 
     if ($DBI::err) {
@@ -1342,9 +1341,9 @@ sub process {
 
   $table_info->{base_stats} = {%{$table_info->{stats}}} unless ($table_info->{base_stats});
 
-   if ($ccnew_indexes_drop) {
-     ccnew_indexes_drop();
-   }  
+#   if ($ccnew_indexes_drop) {
+#     ccnew_indexes_drop();
+#   }  
 
   if (!$is_locked && !$no_initial_vacuum) {
     my $vacuum_time = time;
@@ -1678,7 +1677,6 @@ sub process {
       }
     }
   }
-    
   if (!$is_locked && !($is_skipped && !defined($is_reindexed))) {
     my $complete = (($will_be_skipped || $is_skipped) && (defined $is_reindexed ? $is_reindexed : 1));
     if ($complete) {
@@ -2178,7 +2176,7 @@ SQL statement to be called after each round against current database
 
 A maximum number of retries in case of unsuccessful processing. By default 10.
 
-=item B<--$ccnew_indexes_drop>
+=item B<--ccnew_indexes_drop>
 
 Removing unnecessary ccnew indexes
 
