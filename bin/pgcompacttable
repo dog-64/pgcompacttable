@@ -1306,7 +1306,7 @@ SELECT pg_indexes.indexname::text
 
   my @result;
   while(my ($idx_name) = $sth->fetchrow_array) {
-    logger(LO_NOTICE, "Removing unnecessary ccnew index: %s", $idx_name);
+    logger(LOG_NOTICE, "Removing unnecessary ccnew index: %s", $idx_name);
     my $sdrop = _dbh->do("DROP INDEX CONCURRENTLY IF EXISTS $idx_name");
 
     if ($DBI::err) {
