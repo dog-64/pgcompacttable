@@ -1525,8 +1525,6 @@ sub process {
         _dbh->commit();
       } 
 
-      ccnews_drop();
-      
       my $sleep_time = $delay_ratio * (time - $start_time);
       # This is amazing, but sleep_time may unexpectedly be less than 0. Spotted on windows
       if ($sleep_time > 0) {
