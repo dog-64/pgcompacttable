@@ -990,6 +990,9 @@ sub reindex {
 
   if ($DBI::err) {
     logger(LOG_ERROR, "SQL Error: %s", $DBI::errstr);
+    if ($ccnew_indexes_drop) {
+       ccnew_indexes_drop();
+    }  
     return undef;
   }
 
@@ -1307,7 +1310,7 @@ SELECT pg_indexes.indexname::text
 
   my @result;
   while(my ($idx_name) = $sth->fetchrow_array) {
-    logger(LOG_ERROR, "DROP INDEX CONCURRENTLY IF EXISTS  %s", $idx_name);
+    logger(LOG_NOTICE, "Removing unnecessary ccnew index: %s", $idx_name);
     my $sdrop = _dbh->do("DROP INDEX CONCURRENTLY IF EXISTS $idx_name");
 
     if ($DBI::err) {
@@ -1341,10 +1344,6 @@ sub process {
   }
 
   $table_info->{base_stats} = {%{$table_info->{stats}}} unless ($table_info->{base_stats});
-
-   if ($ccnew_indexes_drop) {
-     ccnew_indexes_drop();
-   }  
 
   if (!$is_locked && !$no_initial_vacuum) {
     my $vacuum_time = time;
@@ -1526,8 +1525,6 @@ sub process {
         _dbh->commit();
       } 
 
-      ccnews_drop();
-      
       my $sleep_time = $delay_ratio * (time - $start_time);
       # This is amazing, but sleep_time may unexpectedly be less than 0. Spotted on windows
       if ($sleep_time > 0) {
@@ -1678,7 +1675,6 @@ sub process {
       }
     }
   }
-    
   if (!$is_locked && !($is_skipped && !defined($is_reindexed))) {
     my $complete = (($will_be_skipped || $is_skipped) && (defined $is_reindexed ? $is_reindexed : 1));
     if ($complete) {
@@ -1865,6 +1861,9 @@ foreach my $current_db_name (@dbs) {
       logger(LOG_NOTICE, "Start handling table %s.%s", $current_ident->{schemaname}, $current_ident->{tablename});
       push @retry_idents, $current_ident unless process($current_ident->{schemaname}, $current_ident->{tablename}, $attempt, $table_info{$current_db_name}{tables}{$table_key}{current});
       logger(LOG_NOTICE, "Finish handling table %s.%s", $current_ident->{schemaname}, $current_ident->{tablename});
+      if ($ccnew_indexes_drop) {
+        ccnew_indexes_drop();
+      }  
       if ($attempt == 0) {
         $table_info{$current_db_name}{tables}{$table_key}{final}{base_stats}{size} = $table_info{$current_db_name}{tables}{$table_key}{current}{base_stats}{size}; 
         $table_info{$current_db_name}{tables}{$table_key}{final}{base_stats}{total_size} = $table_info{$current_db_name}{tables}{$table_key}{current}{base_stats}{total_size};
@@ -2175,7 +2174,7 @@ SQL statement to be called after each round against current database
 
 A maximum number of retries in case of unsuccessful processing. By default 10.
 
-=item B<--$ccnew_indexes_drop>
+=item B<--ccnew_indexes_drop>
 
 Removing unnecessary ccnew indexes
 
