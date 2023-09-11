@@ -1288,7 +1288,11 @@ sub ccnew_indexes_drop {
 SELECT pg_indexes.indexname::text
     FROM pg_indexes
     INNER JOIN pg_class ON pg_indexes.indexname = pg_class.relname
+    INNER JOIN pg_namespace AS ns ON pg_class.relnamespace = ns.oid
+    INNER JOIN pg_index ON  pg_class.relnamespace = pg_index.indexrelid
     WHERE pg_indexes.indexname LIKE '%_ccnew%'
+    AND NOT nspname LIKE 'pg%'
+    AND pg_index.indisvalid = false
     AND NOT EXISTS (
         SELECT 1
         FROM pg_locks
