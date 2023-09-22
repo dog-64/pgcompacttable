@@ -84,6 +84,7 @@ my %excluded_tables;
 my $initial_reindex;
 my $no_initial_vacuum;
 my $ccnew_indexes_drop;
+my $ccold_indexes_drop;
 
 my %table_info;
 
@@ -121,7 +122,8 @@ unless (GetOptions(
             'N|exclude-schema=s' => \$exclude_schema,
             'T|exclude-table=s' => \$exclude_table,
             'i|initial-reindex' => \$initial_reindex,
-            'ccnew-indexes-drop' => \$ccnew_indexes_drop
+            'ccnew-indexes-drop' => \$ccnew_indexes_drop,
+            'ccold-indexes-drop' => \$ccold_indexes_drop
           )) {
  show_usage();
  exit(0);
@@ -993,6 +995,9 @@ sub reindex {
     if ($ccnew_indexes_drop) {
        ccnew_indexes_drop();
     }  
+    if ($ccold_indexes_drop) {
+       ccold_indexes_drop();
+    }  
     return undef;
   }
 
@@ -1311,6 +1316,42 @@ SELECT pg_indexes.indexname::text
   my @result;
   while(my ($idx_name) = $sth->fetchrow_array) {
     logger(LOG_NOTICE, "Removing unnecessary ccnew index: %s", $idx_name);
+    my $sdrop = _dbh->do("DROP INDEX CONCURRENTLY IF EXISTS $idx_name");
+
+    if ($DBI::err) {
+      logger(LOG_ERROR, "SQL Error: %s", $DBI::errstr);
+      return undef;
+    }
+  }
+}
+
+sub ccold_indexes_drop {
+  my $sth = _dbh->prepare("
+SELECT pg_indexes.indexname::text
+    FROM pg_indexes
+    INNER JOIN pg_class ON pg_indexes.indexname = pg_class.relname
+    INNER JOIN pg_namespace AS ns ON pg_class.relnamespace = ns.oid
+    INNER JOIN pg_index ON  pg_class.oid = pg_index.indexrelid
+    WHERE pg_indexes.indexname LIKE '%_ccold%'
+    AND NOT nspname LIKE 'pg%'
+    AND NOT EXISTS (
+        SELECT 1
+        FROM pg_locks
+        WHERE locktype = 'relation'
+        AND relation = pg_class.oid
+        AND mode LIKE 'AccessExclusiveLock'
+    )
+  ");
+  $sth->execute;
+
+  if ($DBI::err) {
+    logger(LOG_ERROR, "SQL Error: %s", $DBI::errstr);
+    return undef;
+  }
+
+  my @result;
+  while(my ($idx_name) = $sth->fetchrow_array) {
+    logger(LOG_NOTICE, "Removing unnecessary ccold index: %s", $idx_name);
     my $sdrop = _dbh->do("DROP INDEX CONCURRENTLY IF EXISTS $idx_name");
 
     if ($DBI::err) {
@@ -1864,6 +1905,9 @@ foreach my $current_db_name (@dbs) {
       if ($ccnew_indexes_drop) {
         ccnew_indexes_drop();
       }  
+      if ($ccold_indexes_drop) {
+        ccold_indexes_drop();
+      }  
       if ($attempt == 0) {
         $table_info{$current_db_name}{tables}{$table_key}{final}{base_stats}{size} = $table_info{$current_db_name}{tables}{$table_key}{current}{base_stats}{size}; 
         $table_info{$current_db_name}{tables}{$table_key}{final}{base_stats}{total_size} = $table_info{$current_db_name}{tables}{$table_key}{current}{base_stats}{total_size};
@@ -2177,6 +2221,10 @@ A maximum number of retries in case of unsuccessful processing. By default 10.
 =item B<--ccnew_indexes_drop>
 
 Removing unnecessary ccnew indexes
+
+=item B<--ccold_indexes_drop>
+
+Removing unnecessary ccold indexes
 
 =back
 
